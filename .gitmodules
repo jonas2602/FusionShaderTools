@@ -1,0 +1,3 @@
+[submodule "FusionShaderTools/vendor/glslang"]
+	path = FusionShaderTools/vendor/glslang
+	url = git@github.com:jonas2602/glslang.git
