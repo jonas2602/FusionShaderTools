@@ -18,10 +18,13 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
 IncludeDir["glslang"] = "FusionShaderTools/vendor/glslang"
+IncludeDir["spirvcross"] = "FusionShaderTools/vendor/SPIRV-Cross"
 
 group "Dependencies"
 	include "FusionShaderTools/vendor/glslang"
+	include "FusionShaderTools/vendor/SPIRV-Cross"
 
+-- Reset Group to Default 
 group ""
 
 project "FusionShaderTools"
@@ -34,23 +37,10 @@ project "FusionShaderTools"
 	targetdir ("bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("bin-int/" .. outputdir .. "/%{prj.name}")
 
-	-- pchheader "fepch.h"
-	-- pchsource "Fusion/src/fepch.cpp"
-
 	files 
 	{
 		"%{prj.name}/src/**.h",
 		"%{prj.name}/src/**.cpp",
-		-- "%{prj.name}/vendor/stb_image/**.h",
-		-- "%{prj.name}/vendor/stb_image/**.cpp",
-		-- "%{prj.name}/vendor/glm/glm/**.hpp",
-		-- "%{prj.name}/vendor/glm/glm/**.inl",
-	}
-
-	defines
-	{
-		-- Disable ImGui warnings
-		-- "_CRT_SECURE_NO_WARNINGS"
 	}
 
 	includedirs 
@@ -58,23 +48,13 @@ project "FusionShaderTools"
 		"%{prj.name}/src",
 		"%{prj.name}/vendor",
 		"%{IncludeDir.glslang}",
-	}
-
-	libdirs 
-	{ 
-		-- "%{prj.name}/vendor/glslang/lib/",
+		"%{IncludeDir.spirvcross}",
 	}
 
 	links 
 	{
 		"glslang",
-		-- "HLSL.lib",
-		-- "OGLCompiler.lib",
-		-- "OSDependent.lib",
-		-- "SPIRV.lib",
-		-- "SPIRV-Tools.lib",
-		-- "SPIRV-Tools-opt.lib",
-		-- "SPVRemapper.lib",
+		"SPIRV-Cross",
 	}
 
 	filter "system:windows"
@@ -84,12 +64,6 @@ project "FusionShaderTools"
 		{
 			"FE_PLATFORM_WINDOWS",
 		}
-
-		-- No longer required with static build?
-		-- postbuildcommands
-		-- {
-		-- 	("{COPY} %{cfg.buildtarget.relpath} ../bin/" .. outputdir .. "/Sandbox"),
-		-- }
 
 	filter "configurations:Debug"
 		defines "FE_DEBUG"
