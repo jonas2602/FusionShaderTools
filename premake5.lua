@@ -1,5 +1,6 @@
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
+IncludeDir["json"] = "vendor/json/include"
 IncludeDir["glslang"] = "vendor/glslang"
 IncludeDir["spirvcross"] = "vendor/SPIRV-Cross"
 
@@ -25,6 +26,7 @@ project "FusionShaderTools"
 	{
 		"src",
 		"vendor",
+		"%{IncludeDir.json}",
 		"%{IncludeDir.glslang}",
 		"%{IncludeDir.spirvcross}",
 	}

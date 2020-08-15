@@ -18,6 +18,7 @@ outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
+IncludeDir["json"] = "%{wks.location}/vendor/json/include"
 IncludeDir["glslang"] = "%{wks.location}/vendor/glslang"
 IncludeDir["spirvcross"] = "%{wks.location}/vendor/SPIRV-Cross"
 
@@ -51,6 +52,7 @@ project "FusionShaderTools"
 		"%{wks.location}/include",
 		"%{wks.location}/standalone",
 		"%{wks.location}/vendor",
+		"%{IncludeDir.json}",
 		"%{IncludeDir.glslang}",
 		"%{IncludeDir.spirvcross}",
 	}

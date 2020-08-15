@@ -4,3 +4,7 @@
 [submodule "vendor/glslang"]
 	path = vendor/glslang
 	url = git@github.com:jonas2602/glslang.git
+[submodule "vendor/json"]
+	path = vendor/json
+	url = git@github.com:nlohmann/json.git
+	branch = develop
