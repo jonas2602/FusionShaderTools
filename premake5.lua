@@ -1,35 +1,13 @@
-workspace "FusionShaderTools"
-	architecture "x64"
-	startproject "FusionShaderTools"
-
-	configurations
-	{
-		"Debug",
-		"Release"
-	}
-	
-	flags
-	{ 
-		"MultiProcessorCompile" 
-	}
-
-outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
-
 -- Include directories relative to root folder (solution directory)
 IncludeDir = {}
-IncludeDir["glslang"] = "FusionShaderTools/vendor/glslang"
-IncludeDir["spirvcross"] = "FusionShaderTools/vendor/SPIRV-Cross"
+IncludeDir["glslang"] = "vendor/glslang"
+IncludeDir["spirvcross"] = "vendor/SPIRV-Cross"
 
-group "Dependencies"
-	include "FusionShaderTools/vendor/glslang"
-	include "FusionShaderTools/vendor/SPIRV-Cross"
-
--- Reset Group to Default 
-group ""
+include "vendor/glslang"
+include "vendor/SPIRV-Cross"
 
 project "FusionShaderTools"
-	location "FusionShaderTools"
-	kind "ConsoleApp"
+	kind "StaticLib"
 	language "C++"
 	cppdialect "C++17"
 	staticruntime "on"
@@ -39,14 +17,14 @@ project "FusionShaderTools"
 
 	files 
 	{
-		"%{prj.name}/src/**.h",
-		"%{prj.name}/src/**.cpp",
+		"include/**.h",
+		"src/**.cpp",
 	}
 
 	includedirs 
 	{
-		"%{prj.name}/src",
-		"%{prj.name}/vendor",
+		"src",
+		"vendor",
 		"%{IncludeDir.glslang}",
 		"%{IncludeDir.spirvcross}",
 	}
@@ -60,19 +38,12 @@ project "FusionShaderTools"
 	filter "system:windows"
 		systemversion "latest"
 
-		defines
-		{
-			"FE_PLATFORM_WINDOWS",
-		}
-
 	filter "configurations:Debug"
-		defines "FE_DEBUG"
 		runtime "Debug"
 		buildoptions "/MDd"
 		symbols "on"
 
 	filter "configurations:Release"
-		defines "FE_RELEASE"
 		runtime "Release"
 		buildoptions "/MD"
 		optimize "on"

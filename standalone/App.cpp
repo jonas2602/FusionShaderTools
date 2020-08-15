@@ -1,5 +1,5 @@
-#include "Utils.h"
-#include "SpirVCompiler.h"
+#include "FusionShaderTools/Utils.h"
+#include "FusionShaderTools/SpirVCompiler.h"
 
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>

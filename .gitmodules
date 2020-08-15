@@ -1,6 +1,6 @@
-[submodule "FusionShaderTools/vendor/glslang"]
-	path = FusionShaderTools/vendor/glslang
-	url = git@github.com:jonas2602/glslang.git
-[submodule "FusionShaderTools/vendor/SPIRV-Cross"]
-	path = FusionShaderTools/vendor/SPIRV-Cross
+[submodule "vendor/SPIRV-Cross"]
+	path = vendor/SPIRV-Cross
 	url = git@github.com:jonas2602/SPIRV-Cross.git
+[submodule "vendor/glslang"]
+	path = vendor/glslang
+	url = git@github.com:jonas2602/glslang.git

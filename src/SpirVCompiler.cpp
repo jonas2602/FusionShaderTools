@@ -1,4 +1,4 @@
-#include "SpirVCompiler.h"
+#include "FusionShaderTools/SpirVCompiler.h"
 
 #include <glslang/Public/ShaderLang.h>
 #include <SPIRV/GlslangToSpv.h>
