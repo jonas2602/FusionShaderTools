@@ -13,7 +13,7 @@ namespace fs = std::filesystem;
 
 namespace FusionShaderTools {
 
-	class StringUtils 
+	class StringUtils
 	{
 	public:
 		static bool TryReadFile(const fs::path& path, std::string& outString)
@@ -51,6 +51,16 @@ namespace FusionShaderTools {
 		}
 
 	public:
+		static std::string StringUtils::ToLowerCase(const std::string& str)
+		{
+			std::string data = str;
+			std::transform(data.begin(), data.end(), data.begin(),
+				[](unsigned char c) { return std::tolower(c); }
+			);
+
+			return data;
+		}
+
 		static bool SplitRegions(const std::string& source, std::unordered_map<std::string, std::string>& outRegions)
 		{
 			const char* typeToken = "#type";

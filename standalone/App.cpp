@@ -10,8 +10,7 @@
 #include <spirv_parser.hpp>
 #include <spirv_reflect.hpp>
 
-int main(int argc, char** argv)
-{
+void Test() {
 	FusionShaderTools::ShaderCompilerConfig config;
 	FusionShaderTools::SpirVCompiler shaderTools(config);
 
@@ -105,39 +104,200 @@ int main(int argc, char** argv)
 
 	// Compile to GLSL, ready to give to GL driver.
 	// std::string source = glsl.compile();
+}
+
+enum class EShaderLanguage {
+	GLSL,
+	HLSL,
+	SPV,
+	MSL,
+};
+
+struct ShaderCompilerConfig {
+public:
+	bool ContainsLanguage(EShaderLanguage type) const {
+		return OutputLanguages.find(type) != OutputLanguages.end();
+	}
+
+public:
+	fs::path FilePath;
+	fs::path OutputDirectory;
+	std::set<EShaderLanguage> OutputLanguages;
+};
+
+bool ProcessArguments(int argc, char** argv, ShaderCompilerConfig& outConfig) {
+	// early out when not enough arguments available
+	if (argc < 2) {
+		std::cout << "Compiler needs at least the source path specified" << std::endl;
+		return false;
+	}
+
+	for (int i = 0; i < argc; i++) {
+		std::string argument = argv[i];
+
+		if (i == 0) {
+			// ignore argument zero for now
+		}
+		else if (i == 1) {
+			// next argument must always be the filepath
+			if (argument.front() == '-') {
+				std::cout << "first argument must be the filepath not an option" << std::endl;
+				return false;
+			}
+
+			outConfig.FilePath = argument;
+			if (outConfig.FilePath.extension() != ".glsl") {
+				std::cout << "fusion shader processor only supports glsl as input" << std::endl;
+				return false;
+			}
+		}
+		else {
+			argument = FusionShaderTools::StringUtils::ToLowerCase(argument);
+			if (argument == "-spv") { outConfig.OutputLanguages.insert(EShaderLanguage::SPV); }
+			if (argument == "-glsl") { outConfig.OutputLanguages.insert(EShaderLanguage::GLSL); }
+			if (argument == "-hlsl") { outConfig.OutputLanguages.insert(EShaderLanguage::HLSL); }
+			if (argument == "-msl") { outConfig.OutputLanguages.insert(EShaderLanguage::MSL); }
+			if (argument == "-o") {
+				i++;
+				if (i >= argc) {
+					std::cout << "-o must be followed by the output directory" << std::endl;
+					return false;
+				}
+				std::string argument = argv[i];
+				if (argument.front() == '-') {
+					std::cout << "-o must be followed by the output directory" << std::endl;
+					return false;
+				}
+				outConfig.OutputDirectory = argument;
+			}
+		}
+	}
+
+	return true;
+}
+
+//
+// Return codes from main/exit().
+//
+enum EFailCode {
+	Success = 0,
+	FailUsage,
+	FailCompile,
+	FailLink,
+	FailCompilerCreate,
+	FailThreadCreate,
+	FailLinkerCreate
+};
+
+//
+// Give error and exit with failure code.
+//
+#define Error(msg, code) \
+	std::cerr << msg << std::endl; \
+	std::cin.get(); \
+	exit(code);
 
 
+int main(int argc, char** argv)
+{
+	ShaderCompilerConfig outConfig;
+	// std::vector<char*> args = { "i have no idea", "shaders/VulkanShader.glsl", "-glsl", "-spv", "-o", "compiled/" };
+	std::cout << "Processing Arguments ..." << std::endl;
+	if (!ProcessArguments(argc, argv, outConfig)) {
+		Error("Failed to Process Arguments", EFailCode::FailUsage);
+	}
+	std::cout << "Processing Arguments Finished" << std::endl;
 
-	fs::path sourcePath = "shaders/VulkanShader.glsl";
+	std::string shaderName = outConfig.FilePath.stem().string();
+	fs::path shaderPath = outConfig.FilePath.parent_path();
+	fs::path compiledPath = shaderPath / outConfig.OutputDirectory;
 
-	std::string shaderName = sourcePath.stem().string();
-	fs::path shaderPath = sourcePath.parent_path();
-	fs::path compiledPath = shaderPath / "compiled";
-	fs::create_directories(compiledPath);
+	if (outConfig.OutputLanguages.size() > 0) {
+		fs::create_directories(compiledPath);
+	}
+	else {
+		std::cout << "No Output Language requested, just generating meta file" << std::endl;
+	}
 
+	std::cout << std::endl;
+
+	std::cout << "Reading Source File from: " << outConfig.FilePath << " ..." << std::endl;
 	std::string sourceString;
-	FileUtils::TryReadFile(sourcePath, sourceString);
+	if (!FileUtils::TryReadFile(outConfig.FilePath, sourceString)) {
+		Error("Failed to read Source File", EFailCode::FailUsage);
+	}
+
 	FusionShaderTools::ShaderSource shaderSource = { sourceString };
 	std::vector<FusionShaderTools::ShaderStage_Source> stagesSources;
 	FusionShaderTools::FusionShaderUtils::SplitShaderSource(shaderSource, stagesSources);
+	if (stagesSources.empty()) {
+		Error("Source contains no Stages", EFailCode::FailUsage);
+	}
+
+	std::cout << "Received: ";
+	for (const FusionShaderTools::ShaderStage_Source& stage : stagesSources) {
+		std::cout << FusionShaderTools::ShaderStageToString(stage.Type) << " ";
+	}
+	std::cout << "stages" << std::endl;
+
+	std::cout << std::endl;
 
 	FusionShaderTools::ShaderInfo programInfo(shaderName);
 	for (const FusionShaderTools::ShaderStage_Source& stage : stagesSources) {
+		std::cout << "Start Processing Shader Stage " << FusionShaderTools::ShaderStageToString(stage.Type) << std::endl;
+
+		std::cout << "Compiling ..." << std::endl;
 		FusionShaderTools::ShaderStage_SpirV spirv = FusionShaderTools::FusionShaderUtils::CompileStage_SPIRV(stage);
 
+		std::cout << "Generating Meta Data ..." << std::endl;
 		FusionShaderTools::ShaderStageInfo stageInfo = FusionShaderTools::FusionShaderUtils::GetStageInfo(spirv);
-		stageInfo.Path = fs::path("compiled") / (shaderName + spirv.GetExtensionMinimal());
+		stageInfo.Path = outConfig.OutputDirectory / (shaderName + spirv.GetExtensionMinimal());
 		programInfo.Stages.push_back(stageInfo);
 
-		fs::path writePath = compiledPath / (shaderName + spirv.GetExtension());
-		FileUtils::TryWriteFile(writePath, spirv.ToString());
+		if (outConfig.ContainsLanguage(EShaderLanguage::SPV)) {
+			std::cout << "Building SPIR-V File ..." << std::endl;
+			fs::path writePath = compiledPath / (shaderName + spirv.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, spirv.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+		if (outConfig.ContainsLanguage(EShaderLanguage::GLSL)) {
+			std::cout << "Building GLSL File ..." << std::endl;
+			FusionShaderTools::ShaderStage_GLSL glsl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(spirv);
+			fs::path writePath = compiledPath / (shaderName + glsl.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, glsl.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+		if (outConfig.ContainsLanguage(EShaderLanguage::HLSL)) {
+			std::cout << "Building HLSL File ..." << std::endl;
+			FusionShaderTools::ShaderStage_GLSL hlsl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(spirv);
+			fs::path writePath = compiledPath / (shaderName + hlsl.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, hlsl.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+		if (outConfig.ContainsLanguage(EShaderLanguage::MSL)) {
+			std::cout << "Building MSL File ..." << std::endl;
+			FusionShaderTools::ShaderStage_GLSL msl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(spirv);
+			fs::path writePath = compiledPath / (shaderName + msl.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, msl.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+
+		std::cout << "Finished Processing Shader Stage " << FusionShaderTools::ShaderStageToString(stage.Type) << std::endl << std::endl;
 	}
 
+	std::cout << "Building Meta File ..." << std::endl;
 	nlohmann::json archive = nlohmann::json::object();
 	programInfo.Serialize(archive);
 	fs::path metaPath = shaderPath / (shaderName + ".fshader");
-	FileUtils::TryWriteFile(metaPath, archive.dump(4));
+	if (!FileUtils::TryWriteFile(metaPath, archive.dump(4))) {
+		Error("Failed to write into " << metaPath, EFailCode::FailUsage);
+	}
 
+	std::cout << "Shader Compiler Finished successfully" << std::endl;
 
 	std::cin.get();
 	return 0;
