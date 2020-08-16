@@ -91,7 +91,7 @@ namespace FusionShaderTools {
 	public:
 		bool Serialize(nlohmann::json& archive) const {
 			archive["name"] = Name;
-			archive["type"] = Type;
+			archive["type"] = ShaderDataToString(Type);
 			archive["slot"] = Slot;
 
 			return true;
@@ -101,14 +101,14 @@ namespace FusionShaderTools {
 			if (!archive.is_object()) { return false; }
 
 			Name = archive["name"];
-			Type = archive["type"];
+			Type = ShaderDataFromString(archive["type"]);
 			Slot = archive["slot"];
 
 			return true;
 		}
 
 		bool operator<(const ShaderAttributeInfo& other) const {
-			return other.Slot < Slot;
+			return Slot < other.Slot;
 		}
 
 	public:
@@ -175,7 +175,7 @@ namespace FusionShaderTools {
 		}
 
 		bool operator<(const ShaderUniformBlockInfo& other) const {
-			return other.Slot < Slot;
+			return Slot < other.Slot;
 		}
 
 	public:
@@ -188,6 +188,9 @@ namespace FusionShaderTools {
 
 	struct ShaderStageInfo {
 	public:
+		ShaderStageInfo()
+		{ }
+
 		ShaderStageInfo(EShaderStageType type, spirv_cross::Compiler& compiler, spirv_cross::ShaderResources& resources) {
 			Type = type;
 
@@ -206,8 +209,8 @@ namespace FusionShaderTools {
 
 	public:
 		bool Serialize(nlohmann::json& archive) const {
-			archive["type"] = Type;
-			archive["source"] = Path;
+			archive["type"] = ShaderStageToString(Type);
+			archive["source"] = Path.string();
 
 			archive["inputs"] = nlohmann::json::array();
 			for (const ShaderAttributeInfo& attribute : Inputs) {
@@ -239,7 +242,7 @@ namespace FusionShaderTools {
 		bool Deserialize(const nlohmann::json& archive) {
 			if (!archive.is_object()) { return false; }
 
-			Type = archive["type"];
+			Type = ShaderStageFromString(archive["type"]);
 			Path = std::string(archive["source"]);
 
 			for (const nlohmann::json& elementArchive : archive["inputs"]) {
@@ -276,13 +279,35 @@ namespace FusionShaderTools {
 
 	// TODO: rename to program info?
 	struct ShaderInfo {
+	public:
+		ShaderInfo(const std::string& name)
+			: Name(name)
+		{ }
 
 	public:
 		bool Serialize(nlohmann::json& archive) const {
+			archive["name"] = Name;
+
+			archive["stages"] = nlohmann::json::array();
+			for (const ShaderStageInfo& element : Stages) {
+				nlohmann::json elementArchive = nlohmann::json::object();
+				if (element.Serialize(elementArchive)) {
+					archive["stages"].push_back(elementArchive);
+				}
+			}
 			return true;
 		}
 
 		bool Deserialize(const nlohmann::json& archive) {
+			Name = archive["name"];
+
+			for (const nlohmann::json& elementArchive : archive["stages"]) {
+				ShaderStageInfo stage;
+				if (stage.Deserialize(elementArchive)) {
+					Stages.push_back(stage);
+				}
+
+			}
 			return true;
 		}
 

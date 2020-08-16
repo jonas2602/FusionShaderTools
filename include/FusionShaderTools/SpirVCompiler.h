@@ -60,6 +60,7 @@ namespace FusionShaderTools {
 		glslang::TProgram* LinkProgram(const std::vector<glslang::TShader*>& shaders);
 
 		std::vector<uint32_t> GlslToSpv(glslang::TShader* inGlsl);
+		std::vector<uint32_t> GlslToSpv(glslang::TProgram* program, EShLanguage stage);
 
 		/*std::vector<char> SpvToGlsl(const std::vector<uint32_t>& inSpirV) {
 

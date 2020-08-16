@@ -1,6 +1,7 @@
 #include "FusionShaderTools/Utils.h"
 #include "FusionShaderTools/SpirVCompiler.h"
 #include "FusionShaderTools.h"
+#include "FusionShaderTools/ShaderTypes.h"
 
 #include <spirv_cross.hpp>
 #include <spirv_glsl.hpp>
@@ -87,13 +88,13 @@ int main(int argc, char** argv)
 	{
 		unsigned set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
 		unsigned binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
-	//	printf("Image %s at set = %u, binding = %u\n", resource.name.c_str(), set, binding);
-	//
-	//	// Modify the decoration to prepare it for GLSL.
-	//	glsl.unset_decoration(resource.id, spv::DecorationDescriptorSet);
-	//
-	//	// Some arbitrary remapping if we want.
-	//	glsl.set_decoration(resource.id, spv::DecorationBinding, set * 16 + binding);
+		// printf("Image %s at set = %u, binding = %u\n", resource.name.c_str(), set, binding);
+		// 
+		// // Modify the decoration to prepare it for GLSL.
+		// glsl.unset_decoration(resource.id, spv::DecorationDescriptorSet);
+		// 
+		// // Some arbitrary remapping if we want.
+		// glsl.set_decoration(resource.id, spv::DecorationBinding, set * 16 + binding);
 	}
 
 	// Set some options.
@@ -107,15 +108,36 @@ int main(int argc, char** argv)
 
 
 
+	fs::path sourcePath = "shaders/VulkanShader.glsl";
+
+	std::string shaderName = sourcePath.stem().string();
+	fs::path shaderPath = sourcePath.parent_path();
+	fs::path compiledPath = shaderPath / "compiled";
+	fs::create_directories(compiledPath);
 
 	std::string sourceString;
-	FileUtils::TryReadFile("shaders/VulkanShader.glsl", sourceString);
+	FileUtils::TryReadFile(sourcePath, sourceString);
 	FusionShaderTools::ShaderSource shaderSource = { sourceString };
 	std::vector<FusionShaderTools::ShaderStage_Source> stagesSources;
 	FusionShaderTools::FusionShaderUtils::SplitShaderSource(shaderSource, stagesSources);
 
-	FusionShaderTools::ShaderStage_SpirV spirv = FusionShaderTools::FusionShaderUtils::CompileStage_SPIRV(stagesSources[1]);
-	FusionShaderTools::ShaderStageInfo info = FusionShaderTools::FusionShaderUtils::GetStageInfo(spirv);
+	FusionShaderTools::ShaderInfo programInfo(shaderName);
+	for (const FusionShaderTools::ShaderStage_Source& stage : stagesSources) {
+		FusionShaderTools::ShaderStage_SpirV spirv = FusionShaderTools::FusionShaderUtils::CompileStage_SPIRV(stage);
+
+		FusionShaderTools::ShaderStageInfo stageInfo = FusionShaderTools::FusionShaderUtils::GetStageInfo(spirv);
+		stageInfo.Path = fs::path("compiled") / (shaderName + spirv.GetExtensionMinimal());
+		programInfo.Stages.push_back(stageInfo);
+
+		fs::path writePath = compiledPath / (shaderName + spirv.GetExtension());
+		FileUtils::TryWriteFile(writePath, spirv.ToString());
+	}
+
+	nlohmann::json archive = nlohmann::json::object();
+	programInfo.Serialize(archive);
+	fs::path metaPath = shaderPath / (shaderName + ".fshader");
+	FileUtils::TryWriteFile(metaPath, archive.dump(4));
+
 
 	std::cin.get();
 	return 0;

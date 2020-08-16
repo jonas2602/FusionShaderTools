@@ -51,7 +51,7 @@ namespace FusionShaderTools {
 		}
 
 	public:
-		static bool SplitRegions(const std::string& source, std::map<std::string, std::string>& outRegions)
+		static bool SplitRegions(const std::string& source, std::unordered_map<std::string, std::string>& outRegions)
 		{
 			const char* typeToken = "#type";
 			size_t typeTokenLength = strlen(typeToken);

@@ -210,8 +210,30 @@ namespace FusionShaderTools {
 		// spvOptions.optimizeSize = false;
 		// spvOptions.disassemble = false;
 		// spvOptions.validate = false;
-
+	
 		glslang::TIntermediate* intermediate = inGlsl->getIntermediate();
+		std::vector<uint32_t> outSpirV;
+		glslang::GlslangToSpv(*intermediate, outSpirV, &logger, &spvOptions);
+	
+		if (logger.getAllMessages().length() > 0)
+		{
+			std::cout << logger.getAllMessages() << std::endl;
+		}
+	
+		return outSpirV;
+	}
+
+	std::vector<uint32_t> SpirVCompiler::GlslToSpv(glslang::TProgram* program, EShLanguage stage) {
+		spv::SpvBuildLogger logger;
+		glslang::SpvOptions spvOptions;
+		// spvOptions.generateDebugInfo = false;
+		// spvOptions.stripDebugInfo = false;
+		// spvOptions.disableOptimizer = true;
+		// spvOptions.optimizeSize = false;
+		// spvOptions.disassemble = false;
+		// spvOptions.validate = false;
+
+		glslang::TIntermediate* intermediate = program->getIntermediate(stage);
 		std::vector<uint32_t> outSpirV;
 		glslang::GlslangToSpv(*intermediate, outSpirV, &logger, &spvOptions);
 

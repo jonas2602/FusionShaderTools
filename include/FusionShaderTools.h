@@ -15,6 +15,9 @@ namespace fs = std::filesystem;
 
 #include <spirv_cross.hpp>
 #include <spirv_reflect.hpp>
+#include <spirv_glsl.hpp>
+#include <spirv_hlsl.hpp>
+#include <spirv_msl.hpp>
 
 namespace FusionShaderTools {
 
@@ -22,7 +25,7 @@ namespace FusionShaderTools {
 	public:
 		static void SplitShaderSource(const ShaderSource& source, std::vector<ShaderStage_Source>& outStages) {
 
-			std::map<std::string, std::string> regions;
+			std::unordered_map<std::string, std::string> regions;
 			StringUtils::SplitRegions(source.Data, regions);
 			for (auto& [name, data] : regions) {
 				EShaderStageType type = ShaderStageFromString(name);
@@ -36,7 +39,12 @@ namespace FusionShaderTools {
 			SpirVCompiler shaderTools(config);
 
 			glslang::TShader* shader = shaderTools.ParseStage(source.Type, source.Source);
-			std::vector<uint32_t> spirv = shaderTools.GlslToSpv(shader);
+			glslang::TProgram* program = shaderTools.LinkProgram({ shader });
+			std::vector<uint32_t> spirv = shaderTools.GlslToSpv(program, shader->getStage());
+			
+			delete program;
+			delete shader;
+
 			return ShaderStage_SpirV(source.Type, spirv);
 		}
 
