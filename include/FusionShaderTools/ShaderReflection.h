@@ -15,7 +15,16 @@ namespace fs = std::filesystem;
 
 namespace FusionShaderTools {
 
-	struct ShaderAttributeInfo
+	struct ShaderInfoBase {
+	public:
+		~ShaderInfoBase() { }
+
+	public:
+		virtual bool Serialize(nlohmann::json& archive) const = 0;
+		virtual bool Deserialize(const nlohmann::json& archive) = 0;
+	};
+
+	struct ShaderAttributeInfo : public ShaderInfoBase
 	{
 	public:
 		ShaderAttributeInfo();
@@ -23,8 +32,8 @@ namespace FusionShaderTools {
 		ShaderAttributeInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource);
 
 	public:
-		bool Serialize(nlohmann::json& archive) const;
-		bool Deserialize(const nlohmann::json& archive);
+		virtual bool Serialize(nlohmann::json& archive) const override;
+		virtual bool Deserialize(const nlohmann::json& archive) override;
 
 		bool operator<(const ShaderAttributeInfo& other) const {
 			return Slot < other.Slot;
@@ -36,56 +45,65 @@ namespace FusionShaderTools {
 		uint32_t Slot;
 	};
 
-	struct ShaderUniformBlockInfo 
+	struct ShaderBindingInfo : public ShaderInfoBase
+	{
+	public:
+		ShaderBindingInfo();
+		ShaderBindingInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource);
+
+	public:
+		virtual bool Serialize(nlohmann::json& archive) const override;
+		virtual bool Deserialize(const nlohmann::json& archive) override;
+
+		bool operator<(const ShaderBindingInfo& other) const {
+			return std::tie(Set, Binding) < std::tie(other.Set, other.Binding);
+		}
+	public:
+		uint32_t Binding;
+		uint32_t Set;
+	};
+
+	struct ShaderUniformBlockInfo : public ShaderBindingInfo
 	{
 	public:
 		ShaderUniformBlockInfo();
 		ShaderUniformBlockInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource);
 
 	public:
-		bool Serialize(nlohmann::json& archive) const;
-		bool Deserialize(const nlohmann::json& archive);
-
-		bool operator<(const ShaderUniformBlockInfo& other) const {
-			return Slot < other.Slot;
-		}
+		virtual bool Serialize(nlohmann::json& archive) const override;
+		virtual bool Deserialize(const nlohmann::json& archive) override;
 
 	public:
 		std::string Name;
 		std::string Type;
 		std::string Layout;
-		uint32_t Slot;
 		std::vector<ShaderAttributeInfo> Elements;
 	};
 
-	struct ShaderImageSamplerInfo
+	struct ShaderImageSamplerInfo : public ShaderBindingInfo
 	{
 	public:
 		ShaderImageSamplerInfo();
 		ShaderImageSamplerInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource);
 
 	public:
-		bool Serialize(nlohmann::json& archive) const;
-		bool Deserialize(const nlohmann::json& archive);
+		virtual bool Serialize(nlohmann::json& archive) const override;
+		virtual bool Deserialize(const nlohmann::json& archive) override;
 
-		bool operator<(const ShaderImageSamplerInfo& other) const {
-			return Slot < other.Slot;
-		}
 
 	public:
 		std::string Name;
-		uint32_t Slot;
 	};
 
-	struct ShaderStageInfo
+	struct ShaderStageInfo : public ShaderInfoBase
 	{
 	public:
 		ShaderStageInfo();
 		ShaderStageInfo(EShaderStageType type, spirv_cross::Compiler& compiler, spirv_cross::ShaderResources& resources);
 
 	public:
-		bool Serialize(nlohmann::json& archive) const;
-		bool Deserialize(const nlohmann::json& archive);
+		virtual bool Serialize(nlohmann::json& archive) const override;
+		virtual bool Deserialize(const nlohmann::json& archive) override;
 
 	public:
 		EShaderStageType Type;
@@ -98,14 +116,14 @@ namespace FusionShaderTools {
 	};
 
 	// TODO: rename to program info?
-	struct ShaderInfo 
+	struct ProgramInfo : public ShaderInfoBase
 	{
 	public:
-		ShaderInfo(const std::string& name);
+		ProgramInfo(const std::string& name);
 
 	public:
-		bool Serialize(nlohmann::json& archive) const;
-		bool Deserialize(const nlohmann::json& archive);
+		virtual bool Serialize(nlohmann::json& archive) const override;
+		virtual bool Deserialize(const nlohmann::json& archive) override;
 
 	public:
 		std::string Name;

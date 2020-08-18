@@ -97,18 +97,43 @@ namespace FusionShaderTools {
 		return true;
 	}
 
+	ShaderBindingInfo::ShaderBindingInfo()
+		: Set(0), Binding(0)
+	{ }
+
+	ShaderBindingInfo::ShaderBindingInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource)
+	{
+		Set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+		Binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+	}
+
+	bool ShaderBindingInfo::Serialize(nlohmann::json& archive) const
+	{
+		archive["binding"] = Binding;
+		archive["set"] = Set;
+		return true;
+	}
+
+	bool ShaderBindingInfo::Deserialize(const nlohmann::json& archive)
+	{
+		Set = archive["set"];
+		Binding = archive["binding"];
+		return true;
+	}
+
 	ShaderUniformBlockInfo::ShaderUniformBlockInfo()
-		: Name(""), Type("")
-		, Layout("std140"), Slot(0)
+		: ShaderBindingInfo()
+		, Name(""), Type("")
+		, Layout("std140")
 	{ }
 
 	ShaderUniformBlockInfo::ShaderUniformBlockInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource)
+		: ShaderBindingInfo(compiler, resource)
 	{
 		Name = compiler.get_name(resource.id);
 		Type = resource.name;
 		// TODO: Determine Layout (Alignment + Packing -> e.g. std140 or std430)
 		Layout = "std140";
-		Slot = compiler.get_decoration(resource.id, spv::DecorationBinding);
 
 		const spirv_cross::SPIRType& type = compiler.get_type(resource.base_type_id);
 		for (int i = 0; i < type.member_types.size(); i++) {
@@ -122,10 +147,11 @@ namespace FusionShaderTools {
 
 	bool ShaderUniformBlockInfo::Serialize(nlohmann::json& archive) const
 	{
+		ShaderBindingInfo::Serialize(archive);
+
 		archive["name"] = Name;
 		archive["type"] = Type;
 		archive["layout"] = Layout;
-		archive["slot"] = Slot;
 
 		archive["elements"] = nlohmann::json::array();
 		for (const ShaderAttributeInfo& attribute : Elements) {
@@ -142,10 +168,11 @@ namespace FusionShaderTools {
 	{
 		if (!archive.is_object()) { return false; }
 
+		ShaderBindingInfo::Deserialize(archive);
+
 		Name = archive["name"];
 		Type = archive["type"];
 		Layout = archive["layout"];
-		Slot = archive["slot"];
 
 		for (const nlohmann::json& elementArchive : archive["elements"]) {
 			ShaderAttributeInfo attribute;
@@ -158,26 +185,29 @@ namespace FusionShaderTools {
 	}
 
 	ShaderImageSamplerInfo::ShaderImageSamplerInfo()
-		: Name(""), Slot(-1)
+		: ShaderBindingInfo()
+		, Name("")
 	{ }
 
 	ShaderImageSamplerInfo::ShaderImageSamplerInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource)
+		: ShaderBindingInfo(compiler, resource)
 	{
 		Name = compiler.get_name(resource.id);
-		Slot = compiler.get_decoration(resource.id, spv::DecorationBinding);
 	}
 
 	bool ShaderImageSamplerInfo::Serialize(nlohmann::json& archive) const
 	{
+		ShaderBindingInfo::Serialize(archive);
+
 		archive["name"] = Name;
-		archive["slot"] = Slot;
 		return true;
 	}
 
 	bool ShaderImageSamplerInfo::Deserialize(const nlohmann::json& archive)
 	{
+		ShaderBindingInfo::Deserialize(archive);
+
 		Name = archive["name"];
-		Slot = archive["slot"];
 		return true;
 	}
 
@@ -186,7 +216,7 @@ namespace FusionShaderTools {
 		, Path("")
 	{ }
 
-	ShaderStageInfo::ShaderStageInfo(EShaderStageType type, spirv_cross::Compiler& compiler, spirv_cross::ShaderResources& resources) 
+	ShaderStageInfo::ShaderStageInfo(EShaderStageType type, spirv_cross::Compiler& compiler, spirv_cross::ShaderResources& resources)
 	{
 		Type = type;
 
@@ -207,7 +237,7 @@ namespace FusionShaderTools {
 		}
 	}
 
-	bool ShaderStageInfo::Serialize(nlohmann::json& archive) const 
+	bool ShaderStageInfo::Serialize(nlohmann::json& archive) const
 	{
 		archive["type"] = ShaderStageToString(Type);
 		archive["source"] = Path.string();
@@ -247,7 +277,7 @@ namespace FusionShaderTools {
 		return true;
 	}
 
-	bool ShaderStageInfo::Deserialize(const nlohmann::json& archive) 
+	bool ShaderStageInfo::Deserialize(const nlohmann::json& archive)
 	{
 		if (!archive.is_object()) { return false; }
 
@@ -285,11 +315,11 @@ namespace FusionShaderTools {
 		return true;
 	}
 
-	ShaderInfo::ShaderInfo(const std::string& name)
+	ProgramInfo::ProgramInfo(const std::string& name)
 		: Name(name)
 	{ }
 
-	bool ShaderInfo::Serialize(nlohmann::json & archive) const 
+	bool ProgramInfo::Serialize(nlohmann::json& archive) const
 	{
 		archive["name"] = Name;
 
@@ -303,7 +333,7 @@ namespace FusionShaderTools {
 		return true;
 	}
 
-	bool ShaderInfo::Deserialize(const nlohmann::json& archive) 
+	bool ProgramInfo::Deserialize(const nlohmann::json& archive)
 	{
 		Name = archive["name"];
 

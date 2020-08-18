@@ -87,13 +87,13 @@ void Test() {
 	{
 		unsigned set = glsl.get_decoration(resource.id, spv::DecorationDescriptorSet);
 		unsigned binding = glsl.get_decoration(resource.id, spv::DecorationBinding);
-		// printf("Image %s at set = %u, binding = %u\n", resource.name.c_str(), set, binding);
-		// 
-		// // Modify the decoration to prepare it for GLSL.
-		// glsl.unset_decoration(resource.id, spv::DecorationDescriptorSet);
-		// 
-		// // Some arbitrary remapping if we want.
-		// glsl.set_decoration(resource.id, spv::DecorationBinding, set * 16 + binding);
+		printf("Image %s at set = %u, binding = %u\n", resource.name.c_str(), set, binding);
+
+		// Modify the decoration to prepare it for GLSL.
+		glsl.unset_decoration(resource.id, spv::DecorationDescriptorSet);
+
+		// Some arbitrary remapping if we want.
+		glsl.set_decoration(resource.id, spv::DecorationBinding, set * 16 + binding);
 	}
 
 	// Set some options.
@@ -193,7 +193,7 @@ enum EFailCode {
 // Give error and exit with failure code.
 //
 #define Error(msg, code) \
-	std::cerr << msg << std::endl; \
+	std::cerr << "Error: " << msg << std::endl; \
 	std::cin.get(); \
 	exit(code);
 
@@ -201,9 +201,10 @@ enum EFailCode {
 int main(int argc, char** argv)
 {
 	ShaderCompilerConfig outConfig;
-	// std::vector<char*> args = { "i have no idea", "shaders/VulkanShader.glsl", "-glsl", "-spv", "-o", "compiled/" };
+	std::vector<char*> args = { "i have no idea", "shaders/TextureShader.glsl", "-glsl", "-spv", "-o", "compiled/" };
 	std::cout << "Processing Arguments ..." << std::endl;
-	if (!ProcessArguments(argc, argv, outConfig)) {
+	if (!ProcessArguments(args.size(), args.data(), outConfig)) {
+		// if (!ProcessArguments(argc, argv, outConfig)) {
 		Error("Failed to Process Arguments", EFailCode::FailUsage);
 	}
 	std::cout << "Processing Arguments Finished" << std::endl;
@@ -240,61 +241,96 @@ int main(int argc, char** argv)
 	}
 	std::cout << "stages" << std::endl;
 
-	std::cout << std::endl;
-
-	FusionShaderTools::ShaderInfo programInfo(shaderName);
+	std::cout << "Compiling Stages to Spir-V ..." << std::endl;
+	std::vector<FusionShaderTools::ShaderStage_SpirV> spirvStages;
 	for (const FusionShaderTools::ShaderStage_Source& stage : stagesSources) {
-		std::cout << "Start Processing Shader Stage " << FusionShaderTools::ShaderStageToString(stage.Type) << std::endl;
-
-		std::cout << "Compiling ..." << std::endl;
 		FusionShaderTools::ShaderStage_SpirV spirv = FusionShaderTools::FusionShaderUtils::CompileStage_SPIRV(stage);
-
-		std::cout << "Generating Meta Data ..." << std::endl;
-		FusionShaderTools::ShaderStageInfo stageInfo = FusionShaderTools::FusionShaderUtils::GetStageInfo(spirv);
-		stageInfo.Path = outConfig.OutputDirectory / (shaderName + spirv.GetExtensionMinimal());
-		programInfo.Stages.push_back(stageInfo);
-
-		if (outConfig.ContainsLanguage(EShaderLanguage::SPV)) {
-			std::cout << "Building SPIR-V File ..." << std::endl;
-			fs::path writePath = compiledPath / (shaderName + spirv.GetExtension());
-			if (!FileUtils::TryWriteFile(writePath, spirv.ToString())) {
-				Error("Failed to write into " << writePath, EFailCode::FailUsage);
-			}
-		}
-		if (outConfig.ContainsLanguage(EShaderLanguage::GLSL)) {
-			std::cout << "Building GLSL File ..." << std::endl;
-			FusionShaderTools::ShaderStage_GLSL glsl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(spirv);
-			fs::path writePath = compiledPath / (shaderName + glsl.GetExtension());
-			if (!FileUtils::TryWriteFile(writePath, glsl.ToString())) {
-				Error("Failed to write into " << writePath, EFailCode::FailUsage);
-			}
-		}
-		if (outConfig.ContainsLanguage(EShaderLanguage::HLSL)) {
-			std::cout << "Building HLSL File ..." << std::endl;
-			FusionShaderTools::ShaderStage_GLSL hlsl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(spirv);
-			fs::path writePath = compiledPath / (shaderName + hlsl.GetExtension());
-			if (!FileUtils::TryWriteFile(writePath, hlsl.ToString())) {
-				Error("Failed to write into " << writePath, EFailCode::FailUsage);
-			}
-		}
-		if (outConfig.ContainsLanguage(EShaderLanguage::MSL)) {
-			std::cout << "Building MSL File ..." << std::endl;
-			FusionShaderTools::ShaderStage_GLSL msl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(spirv);
-			fs::path writePath = compiledPath / (shaderName + msl.GetExtension());
-			if (!FileUtils::TryWriteFile(writePath, msl.ToString())) {
-				Error("Failed to write into " << writePath, EFailCode::FailUsage);
-			}
-		}
-
-		std::cout << "Finished Processing Shader Stage " << FusionShaderTools::ShaderStageToString(stage.Type) << std::endl << std::endl;
+		spirvStages.push_back(spirv);
 	}
 
-	std::cout << "Building Meta File ..." << std::endl;
+	std::cout << "Generating Meta Data ..." << std::endl;
+	FusionShaderTools::ProgramInfo programInfo(shaderName);
+	for (const FusionShaderTools::ShaderStage_SpirV& stage : spirvStages) {
+		FusionShaderTools::ShaderStageInfo stageInfo = FusionShaderTools::FusionShaderUtils::GetStageInfo(stage);
+		stageInfo.Path = outConfig.OutputDirectory / (shaderName + stage.GetExtensionMinimal());
+		programInfo.Stages.push_back(stageInfo);
+	}
+
+	std::cout << "Validating Program ..." << std::endl;
+	// Validate Binding Locations
+	uint32_t expectedElementCount = 0;
+	std::set<FusionShaderTools::ShaderBindingInfo> bindingSet;
+	for (const FusionShaderTools::ShaderStageInfo& stage : programInfo.Stages) {
+		bindingSet.insert(stage.ImageSamplers.begin(), stage.ImageSamplers.end());
+		bindingSet.insert(stage.UniformBlocks.begin(), stage.UniformBlocks.end());
+
+		expectedElementCount += stage.ImageSamplers.size() + stage.UniformBlocks.size();
+	}
+	if (bindingSet.size() != expectedElementCount) {
+		Error("Binding Points are used multiple times", EFailCode::FailUsage);
+	}
+
+	std::cout << "Writing Meta File ..." << std::endl;
 	nlohmann::json archive = nlohmann::json::object();
 	programInfo.Serialize(archive);
 	fs::path metaPath = shaderPath / (shaderName + ".fshader");
 	if (!FileUtils::TryWriteFile(metaPath, archive.dump(4))) {
 		Error("Failed to write into " << metaPath, EFailCode::FailUsage);
+	}
+
+	if (outConfig.ContainsLanguage(EShaderLanguage::GLSL)) {
+		std::cout << "Generating GLSL Shader ..." << std::endl;
+
+		// Remap Descriptor Sets to support opengl
+		std::map<uint32_t, uint32_t> setOffsets;
+		for (const FusionShaderTools::ShaderBindingInfo& info : bindingSet) {
+			setOffsets[info.Set] = info.Binding;
+		}
+		uint32_t offset = 0;
+		for (std::pair<uint32_t, uint32_t> set : setOffsets) {
+			setOffsets[set.first] = offset;
+			offset += set.second + 1;
+		}
+
+		for (const FusionShaderTools::ShaderStage_SpirV& stage : spirvStages) {
+			FusionShaderTools::ShaderStage_GLSL glsl = FusionShaderTools::FusionShaderUtils::CompileStage_GLSL(stage, setOffsets);
+			fs::path writePath = compiledPath / (shaderName + glsl.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, glsl.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+	}
+
+	if (outConfig.ContainsLanguage(EShaderLanguage::SPV)) {
+		std::cout << "Generating SPIR-V Shader ..." << std::endl;
+		for (const FusionShaderTools::ShaderStage_SpirV& stage : spirvStages) {
+			fs::path writePath = compiledPath / (shaderName + stage.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, stage.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+	}
+
+	if (outConfig.ContainsLanguage(EShaderLanguage::HLSL)) {
+		std::cout << "Generating HLSL Shader ..." << std::endl;
+		for (const FusionShaderTools::ShaderStage_SpirV& stage : spirvStages) {
+			FusionShaderTools::ShaderStage_HLSL hlsl = FusionShaderTools::FusionShaderUtils::CompileStage_HLSL(stage);
+			fs::path writePath = compiledPath / (shaderName + hlsl.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, hlsl.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
+	}
+
+	if (outConfig.ContainsLanguage(EShaderLanguage::MSL)) {
+		std::cout << "Generating MSL Shader ..." << std::endl;
+		for (const FusionShaderTools::ShaderStage_SpirV& stage : spirvStages) {
+			FusionShaderTools::ShaderStage_MSL msl = FusionShaderTools::FusionShaderUtils::CompileStage_MSL(stage);
+			fs::path writePath = compiledPath / (shaderName + msl.GetExtension());
+			if (!FileUtils::TryWriteFile(writePath, msl.ToString())) {
+				Error("Failed to write into " << writePath, EFailCode::FailUsage);
+			}
+		}
 	}
 
 	std::cout << "Shader Compiler Finished successfully" << std::endl;

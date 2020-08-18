@@ -39,17 +39,53 @@ namespace FusionShaderTools {
 			SpirVCompiler shaderTools(config);
 
 			glslang::TShader* shader = shaderTools.ParseStage(source.Type, source.Source);
+
 			glslang::TProgram* program = shaderTools.LinkProgram({ shader });
 			std::vector<uint32_t> spirv = shaderTools.GlslToSpv(program, shader->getStage());
-			
+
 			delete program;
 			delete shader;
 
 			return ShaderStage_SpirV(source.Type, spirv);
 		}
 
-		static ShaderStage_GLSL CompileStage_GLSL(const ShaderStage_SpirV& source) {
+		static ShaderStage_GLSL CompileStage_GLSL(const ShaderStage_SpirV& source, const std::map<uint32_t, uint32_t>& setOffsets) {
 			spirv_cross::CompilerGLSL compiler(source.Source);
+			spirv_cross::ShaderResources shaderResources = compiler.get_shader_resources();
+			std::vector<spirv_cross::Resource> uniformResources;
+			uniformResources.insert(uniformResources.end(), shaderResources.sampled_images.begin(), shaderResources.sampled_images.end());
+			uniformResources.insert(uniformResources.end(), shaderResources.uniform_buffers.begin(), shaderResources.uniform_buffers.end());
+
+			/*std::set<std::tuple<uint32_t, uint32_t>> bindingSet;
+			for (const spirv_cross::Resource& resource : uniformResources) {
+				uint32_t set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+				bindingSet.insert({ set, binding });
+			}
+			std::map<uint32_t, uint32_t> setOffsets;
+			for (auto& [set, binding] : bindingSet) {
+				setOffsets[set] = binding;
+			}
+			uint32_t offset = 0;
+			for (std::pair<uint32_t, uint32_t> set : setOffsets) {
+				setOffsets[set.first] = offset;
+				offset += set.second + 1;
+			}*/
+
+			for (const spirv_cross::Resource& resource : uniformResources) {
+				uint32_t oldSet = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+				uint32_t oldBinding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+
+				uint32_t offset = 0;
+				if (setOffsets.find(oldSet) != setOffsets.end()) {
+					offset = setOffsets.find(oldSet)->second;
+				}
+
+				uint32_t newBinding = offset + oldBinding;
+				compiler.set_decoration(resource.id, spv::DecorationDescriptorSet, 0);
+				compiler.set_decoration(resource.id, spv::DecorationBinding, newBinding);
+			}
+
 			std::string glsl = compiler.compile();
 			return ShaderStage_GLSL(source.Type, glsl);
 		}

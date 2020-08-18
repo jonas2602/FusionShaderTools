@@ -118,8 +118,8 @@ namespace FusionShaderTools {
 		// shader.addProcesses({});
 
 		// Automatically map attribute bindings and uniform locations if none spezified
-		// shader.setAutoMapBindings(true);
-		// shader.setAutoMapLocations(true);
+		outShader->setAutoMapBindings(true);
+		outShader->setAutoMapLocations(true);
 
 		// invert position.Y output in vertex shader
 		// shader->setInvertY(true);
