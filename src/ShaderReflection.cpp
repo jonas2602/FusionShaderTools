@@ -98,19 +98,24 @@ namespace FusionShaderTools {
 	}
 
 	ShaderBindingInfo::ShaderBindingInfo()
-		: Set(0), Binding(0)
+		: Set(0), Binding(0), Count(0)
 	{ }
 
 	ShaderBindingInfo::ShaderBindingInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource)
 	{
 		Set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
 		Binding = compiler.get_decoration(resource.id, spv::DecorationBinding);
+
+		// extract the array size (zero means not an array)
+		const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
+		Count = type.array[0];
 	}
 
 	bool ShaderBindingInfo::Serialize(nlohmann::json& archive) const
 	{
 		archive["binding"] = Binding;
 		archive["set"] = Set;
+		archive["count"] = Count;
 		return true;
 	}
 
@@ -118,6 +123,7 @@ namespace FusionShaderTools {
 	{
 		Set = archive["set"];
 		Binding = archive["binding"];
+		Count = archive["count"];
 		return true;
 	}
 
@@ -192,6 +198,7 @@ namespace FusionShaderTools {
 	ShaderImageSamplerInfo::ShaderImageSamplerInfo(spirv_cross::Compiler& compiler, spirv_cross::Resource& resource)
 		: ShaderBindingInfo(compiler, resource)
 	{
+		const spirv_cross::SPIRType& type = compiler.get_type(resource.type_id);
 		Name = compiler.get_name(resource.id);
 	}
 

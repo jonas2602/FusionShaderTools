@@ -61,6 +61,7 @@ namespace FusionShaderTools {
 	public:
 		uint32_t Binding;
 		uint32_t Set;
+		uint32_t Count;
 	};
 
 	struct ShaderUniformBlockInfo : public ShaderBindingInfo

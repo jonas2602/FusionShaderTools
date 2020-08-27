@@ -1,5 +1,5 @@
 {
-    "name": "TextureShader",
+    "name": "WidgetShader",
     "stages": [
         {
             "inputs": [
@@ -31,12 +31,13 @@
                     "type": "float2"
                 }
             ],
-            "source": "compiled/TextureShader.vert",
+            "source": "compiled/WidgetShader.vert",
             "textures": [],
             "type": "vertex",
             "uniform_blocks": [
                 {
                     "binding": 0,
+                    "count": 0,
                     "elements": [
                         {
                             "name": "View",
@@ -58,20 +59,6 @@
                     "name": "u_Camera",
                     "set": 0,
                     "type": "CameraBuffer"
-                },
-                {
-                    "binding": 2,
-                    "elements": [
-                        {
-                            "name": "Transform",
-                            "slot": 0,
-                            "type": "mat4"
-                        }
-                    ],
-                    "layout": "std140",
-                    "name": "u_Model",
-                    "set": 0,
-                    "type": "ModelBuffer"
                 }
             ]
         },
@@ -95,22 +82,13 @@
                     "type": "float4"
                 }
             ],
-            "source": "compiled/TextureShader.frag",
+            "source": "compiled/WidgetShader.frag",
             "textures": [
                 {
-                    "binding": 3,
+                    "binding": 0,
+                    "count": 1,
                     "name": "u_TexSampler",
-                    "set": 0
-                },
-                {
-                    "binding": 1,
-                    "name": "u_TexSampler1",
                     "set": 1
-                },
-                {
-                    "binding": 2,
-                    "name": "u_TexSampler2",
-                    "set": 2
                 }
             ],
             "type": "fragment",

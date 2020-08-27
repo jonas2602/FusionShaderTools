@@ -125,15 +125,15 @@ public:
 	std::set<EShaderLanguage> OutputLanguages;
 };
 
-bool ProcessArguments(int argc, char** argv, ShaderCompilerConfig& outConfig) {
+bool ProcessArguments(const std::vector<char*>& args, ShaderCompilerConfig& outConfig) {
 	// early out when not enough arguments available
-	if (argc < 2) {
+	if (args.size() < 2) {
 		std::cout << "Compiler needs at least the source path specified" << std::endl;
 		return false;
 	}
 
-	for (int i = 0; i < argc; i++) {
-		std::string argument = argv[i];
+	for (int i = 0; i < args.size(); i++) {
+		std::string argument = args[i];
 
 		if (i == 0) {
 			// ignore argument zero for now
@@ -159,11 +159,11 @@ bool ProcessArguments(int argc, char** argv, ShaderCompilerConfig& outConfig) {
 			if (argument == "-msl") { outConfig.OutputLanguages.insert(EShaderLanguage::MSL); }
 			if (argument == "-o") {
 				i++;
-				if (i >= argc) {
+				if (i >= args.size()) {
 					std::cout << "-o must be followed by the output directory" << std::endl;
 					return false;
 				}
-				std::string argument = argv[i];
+				std::string argument = args[i];
 				if (argument.front() == '-') {
 					std::cout << "-o must be followed by the output directory" << std::endl;
 					return false;
@@ -200,11 +200,15 @@ enum EFailCode {
 
 int main(int argc, char** argv)
 {
-	ShaderCompilerConfig outConfig;
-	std::vector<char*> args = { "i have no idea", "shaders/TextureShader.glsl", "-glsl", "-spv", "-o", "compiled/" };
+	std::vector<char*> args;
+	for (int i = 0; i < argc; i++) {
+		args.push_back(argv[i]);
+	}
+	// args = { "i have no idea", "shaders/WidgetShader.glsl", "-glsl", "-spv", "-o", "compiled/" };
+
 	std::cout << "Processing Arguments ..." << std::endl;
-	if (!ProcessArguments(args.size(), args.data(), outConfig)) {
-		// if (!ProcessArguments(argc, argv, outConfig)) {
+	ShaderCompilerConfig outConfig;
+	if (!ProcessArguments(args, outConfig)) {
 		Error("Failed to Process Arguments", EFailCode::FailUsage);
 	}
 	std::cout << "Processing Arguments Finished" << std::endl;
